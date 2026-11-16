@@ -1,9 +1,20 @@
 // 起動アニメーション。
 // セッションが始まってから少しの間、タイトルが打ち出され、線が中央から開き、
 // 波が立ってから、画面が上から下へ開く。
+// ときどき(RARE_ODDS 回に 1 回)、花火と流れ星の派手な夜空になる(まれな起動)。
 import type { EngineInterface, RenderInput } from 'claude-code'
 
-import { BARS, backgroundAt, hueAt, ultra } from '../domain/color'
+import {
+  BARS,
+  backgroundAt,
+  flashAt,
+  hueAt,
+  isRareBoot,
+  jackpot,
+  shootingStar,
+  skyRow,
+  ultra,
+} from '../domain/color'
 import { flags } from '../store'
 
 type PaneInput = Extract<RenderInput, { component: 'Pane' }>
@@ -12,21 +23,26 @@ type PaneInput = Extract<RenderInput, { component: 'Pane' }>
 const SPLASH_MS = 1900
 const REVEAL_MS = 700
 const WORDMARK = 'c o n t e x t   f l o w'
+/** まれな起動の、カーソルの色。 */
+const RARE_GOLD = '#ffd54a'
+/** まれな起動の、ひとことの代わりに瞬く飾り。 */
+const RARE_MARK = '★ ✦ ★ ✦ ★ ✦ ★'
 
 const clamp = (v: number): number => Math.min(1, Math.max(0, v))
 
 /**
  * 起動からの時間に応じて、タイトルの画面・開きかけのペイン・ペインそのものを返す。
  * `sinceBoot` は起動アニメーションが始まってからのミリ秒、`view` は描き上がったペイン。
+ * `bootAt` は起動の時刻(まれな起動かどうかと、星の位置を決める)。
  */
 export function renderBoot(
   $: EngineInterface,
   e: PaneInput,
   view: JSX.Element,
-  at: { sinceBoot: number; frame: number; columns: number; room: number },
+  at: { sinceBoot: number; bootAt: number; frame: number; columns: number; room: number },
 ): JSX.Element {
   const { Box, Text } = $.ui.resolve(e)
-  const { sinceBoot, frame, columns, room } = at
+  const { sinceBoot, bootAt, frame, columns, room } = at
   if (sinceBoot >= SPLASH_MS + REVEAL_MS) return view
   if (sinceBoot >= SPLASH_MS) {
     const k = (sinceBoot - SPLASH_MS) / REVEAL_MS
@@ -43,17 +59,21 @@ export function renderBoot(
     )
   }
 
+  const isRare = isRareBoot(bootAt)
+  const paint = isRare ? jackpot : ultra
   const typed = [...WORDMARK].slice(0, Math.floor(sinceBoot / 40)).join('')
   const isTyping = typed.length < WORDMARK.length
   const opened = clamp((sinceBoot - 150) / 800)
   const half = Math.round((1 - (1 - opened) * (1 - opened)) * (columns / 2))
-  // 波の高さは、立ち上がってから静まる。
+  // 波の高さは、立ち上がってから静まる。まれな起動では、波の代わりに流れ星が横切る。
   const swell = Math.sin(Math.PI * clamp((sinceBoot - 350) / 1450))
-  const crest = Array.from({ length: columns }, (_, c) => {
-    const level = swell * ((Math.sin(frame * 1.3 + c * 0.42) + 1) / 2)
+  const crest = isRare
+    ? shootingStar(clamp((sinceBoot - 350) / 1300), columns)
+    : Array.from({ length: columns }, (_, c) => {
+        const level = swell * ((Math.sin(frame * 1.3 + c * 0.42) + 1) / 2)
 
-    return BARS[Math.round(level * (BARS.length - 1))] ?? '▁'
-  }).join('')
+        return BARS[Math.round(level * (BARS.length - 1))] ?? '▁'
+      }).join('')
   const status = sinceBoot < 1250 ? '会話の流れを読み込み中' : '準備完了'
 
   // タイトル・線・波・ひとことを、縦の中央に 1 行おきに置く。
@@ -63,18 +83,18 @@ export function renderBoot(
     [
       top,
       <Box flexDirection="row">
-        {ultra(typed === '' ? ' ' : typed, frame).map(run => (
+        {paint(typed === '' ? ' ' : typed, frame).map(run => (
           <Text bold color={run.color}>
             {run.text}
           </Text>
         ))}
-        {isTyping && <Text color={hueAt(frame)}>▍</Text>}
+        {isTyping && <Text color={isRare ? RARE_GOLD : hueAt(frame)}>▍</Text>}
       </Box>,
     ],
     [
       top + 2,
       <Box flexDirection="row">
-        {ultra('━'.repeat(Math.max(1, half * 2)), frame).map(run => (
+        {paint('━'.repeat(Math.max(1, half * 2)), frame).map(run => (
           <Text bold color={run.color}>
             {run.text}
           </Text>
@@ -84,7 +104,7 @@ export function renderBoot(
     [
       top + 4,
       <Box flexDirection="row">
-        {ultra(crest, frame).map(run => (
+        {paint(crest, frame).map(run => (
           <Text color={run.color}>{run.text}</Text>
         ))}
       </Box>,
@@ -92,10 +112,35 @@ export function renderBoot(
     [
       top + 6,
       <Box flexDirection="row">
-        <Text dimColor>{status}</Text>
+        {isRare ? (
+          jackpot(RARE_MARK, frame * 3).map(run => (
+            <Text bold color={run.color}>
+              {run.text}
+            </Text>
+          ))
+        ) : (
+          <Text dimColor>{status}</Text>
+        )}
       </Box>,
     ],
   ])
+  // まれな起動では、空いた行に星・花火・流れ星を描く。
+  const sky = (row: number): JSX.Element | undefined =>
+    isRare ? (
+      <Box flexDirection="row">
+        {skyRow(bootAt, row, room, columns, sinceBoot, frame).map(run => (
+          <Text bold={run.isBold} color={run.color}>
+            {run.text}
+          </Text>
+        ))}
+      </Box>
+    ) : undefined
+  // まれな起動では、タイトルを打ち終えるころに一瞬だけ金色に光る。
+  const backdrop = (row: number): string | undefined => {
+    const base = backgroundAt(flags.paletteName, row, room)
+
+    return isRare ? flashAt(sinceBoot, base) : base
+  }
 
   return (
     <Box flexDirection="column">
@@ -105,9 +150,9 @@ export function renderBoot(
           alignItems="center"
           width={e.props.bodyColumns}
           paddingX={2}
-          backgroundColor={backgroundAt(flags.paletteName, i, room)}
+          backgroundColor={backdrop(i)}
         >
-          {splash.get(i) ?? <Text> </Text>}
+          {splash.get(i) ?? sky(i) ?? <Text> </Text>}
         </Box>
       ))}
     </Box>
