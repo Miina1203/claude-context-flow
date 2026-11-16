@@ -297,12 +297,13 @@ export const wave = (frame: number): string =>
   }).join('')
 
 // ── まれな起動 ──
-// 起動アニメーションは、ときどき(RARE_ODDS 回に 1 回)金色の夜空になる。
+// 起動アニメーションは、ときどき(RARE_ODDS 回に 1 回)派手な夜空になる:
+// 文字と線は原色が速く流れ、空には花火がはじけ、流れ星が斜めに降り、一瞬だけ金色に光る。
 // 当たりかどうかは起動の時刻だけで決める(描くたびに変わらないように)。
 /** 何回に 1 回、まれな起動になるか。 */
 export const RARE_ODDS = 10
 
-/** 起動の時刻から 0 以上 1 未満の数を作る(同じ時刻なら同じ数)。 */
+/** 起動の時刻から 0 以上 1 未満の数を作る(同じ時刻・同じ salt なら同じ数)。 */
 const lot = (seed: number, salt = 0): number => {
   let h = Math.imul((seed ^ (seed / 2 ** 32)) | 0, 0x9e3779b1) ^ Math.imul(salt + 1, 0x85ebca6b)
   h = Math.imul(h ^ (h >>> 16), 0x7feb352d)
@@ -314,35 +315,106 @@ const lot = (seed: number, salt = 0): number => {
 /** この時刻に始まった起動が、まれな起動か。 */
 export const isRareBoot = (seed: number): boolean => seed > 0 && lot(seed) < 1 / RARE_ODDS
 
-/** 金色の 3 段(地・帯の縁・帯の芯)。 */
-const GOLD = ['#e8a317', '#ffd54a', '#fff6c8'] as const
+/** まれな起動の原色(花火と、流れる文字の色)。 */
+const NEON = ['#ff3b6b', '#ffd54a', '#3bf0ff', '#b15cff', '#5cff8a', '#ff8a3b'] as const
+const neonAt = (i: number): string => NEON[((i % NEON.length) + NEON.length) % NEON.length] ?? '#ffffff'
 
-/** 金色の文字: 地は金、明るい帯は虹の行と同じ 1 本が走る。 */
-export const gold = (text: string, frame: number, offset = 0): Run[] => {
+/** 派手な文字: 原色が 1 文字ずつ速く流れ、明るい帯の芯は白く光る。 */
+export const jackpot = (text: string, frame: number, offset = 0): Run[] => {
   const starts = cellsOf(text, offset)
 
   return runsOf(text, i => {
-    const glow = glowAt(starts[i] ?? offset, frame)
+    const cell = starts[i] ?? offset
 
-    return { color: GOLD[glow >= 0.7 ? 2 : glow > 0 ? 1 : 0], isBold: true }
+    return {
+      color: glowAt(cell, frame) >= 0.7 ? '#ffffff' : neonAt(Math.floor(cell / 2 - frame * 3)),
+      isBold: true,
+    }
   })
 }
 
+/** 一瞬の金色の光をかけた背景。`ms` は起動からのミリ秒。光っていない時は `base` のまま。 */
+export const flashAt = (ms: number, base: string | undefined): string | undefined => {
+  const k = 1 - (ms - FLASH_AT) / FLASH_MS
+  if (k <= 0 || k > 1) return base
+  const from = /^#[0-9a-f]{6}$/i.test(base ?? '') ? base ?? '#000000' : '#000000'
+  const rgb = [1, 3, 5].map(i => Number.parseInt(from.slice(i, i + 2), 16))
+  const gold = [255, 190, 40]
+
+  // 光ってすぐ引く(濁った中間色が長く残らないように)。
+  return hexOf(rgb.map((v, c) => v + ((gold[c] ?? 0) - v) * k * k * 0.9))
+}
+/** 金色に光る時刻(タイトルを打ち終えるころ)と長さ。 */
+const FLASH_AT = 950
+const FLASH_MS = 260
+
 const STARS = ['·', '∙', '✧', '✦', '✧', '∙'] as const
+const BURST = ['✺', '✸', '✦', '✧', '∙', '·'] as const
+const TAIL = ['•', '∙', '∙', '·', '·', '·'] as const
+const BURSTS = 9
+const METEORS = 4
 
-/** 星空の 1 行。星の位置は起動ごと・行ごとに決まり、瞬きだけが動く。 */
-export const starRow = (seed: number, row: number, columns: number, frame: number): string =>
-  Array.from({ length: columns }, (_, c) => {
-    if (lot(seed, row * 1009 + c) >= 0.04) return ' '
-    const phase = Math.floor(frame * 0.35 + lot(seed, c * 7 + row) * STARS.length)
+/**
+ * 空の 1 行: 瞬く星・はじける花火・斜めに降る流れ星。
+ * 位置と時刻は起動ごとに決まり、`ms`(起動からのミリ秒)で動く。`rows` は空の行数。
+ */
+export const skyRow = (
+  seed: number,
+  row: number,
+  rows: number,
+  columns: number,
+  ms: number,
+  frame: number,
+): Run[] => {
+  const cellAt = (c: number): Omit<Run, 'text'> & { ch: string } => {
+    // 花火: 輪が広がり、色が抜けていく。
+    for (let b = 0; b < BURSTS; b++) {
+      const age = ms - (150 + b * 170 + lot(seed, 900 + b) * 120)
+      if (age < 0 || age > 650) continue
+      const cy = 1 + lot(seed, 910 + b) * (rows - 2)
+      const cx = 2 + lot(seed, 920 + b) * (columns - 4)
+      const radius = (age / 650) * (3 + lot(seed, 930 + b) * 4)
+      const d = Math.hypot(row - cy, (c - cx) / 2)
+      if (Math.abs(d - radius) < 0.4) {
+        const fade = Math.min(BURST.length - 1, Math.floor((age / 650) * BURST.length))
+        return { ch: BURST[fade] ?? '·', color: age < 90 ? '#ffffff' : neonAt(b), isBold: true }
+      }
+    }
+    // 流れ星: 右上から左下へ、尾を引いて降る。
+    for (let m = 0; m < METEORS; m++) {
+      const age = ms - (100 + m * 380 + lot(seed, 940 + m) * 150)
+      if (age < 0) continue
+      const hr = lot(seed, 950 + m) * rows * 0.5 + age / 70
+      const hc = columns * (0.6 + lot(seed, 960 + m) * 0.5) - age / 35
+      const k = c - hc
+      if (k < -0.5 || k > TAIL.length * 2) continue
+      if (Math.round(hr - k / 2) !== row) continue
+      if (k < 0.5) return { ch: '★', color: '#fff6c8', isBold: true }
+      return { ch: TAIL[Math.floor(k / 2)] ?? '·', color: neonAt(m + 1) }
+    }
+    // 星: 瞬くだけ。
+    if (lot(seed, row * 1009 + c) < 0.05) {
+      const phase = Math.floor(frame * 0.8 + lot(seed, c * 7 + row) * STARS.length)
+      return { ch: STARS[phase % STARS.length] ?? '·', color: '#8f9bd6' }
+    }
+    return { ch: ' ' }
+  }
+  const cells = Array.from({ length: columns }, (_, c) => cellAt(c))
 
-    return STARS[phase % STARS.length] ?? '·'
-  }).join('')
+  return runsOf(
+    cells.map(cell => cell.ch).join(''),
+    i => {
+      const { ch: _, ...style } = cells[i] ?? { ch: ' ' }
+      return style
+    },
+  )
+}
 
-/** 流れ星: 右上から左へ、尾を引いて横切る 1 行。`k` は 0 から 1 への進み。 */
+/** 地平の流れ星: 右から左へ、尾を引いて横切る 1 行。`k` は 0 から 1 への進み。 */
 export const shootingStar = (k: number, columns: number): string => {
-  const head = Math.round((1 - k) * (columns + 8)) - 4
-  const tail = '━━──···'
+  const tail = '━━━━──···'
+  // 尾まで左へ抜けきってから終わる。
+  const head = Math.round((1 - k) * (columns + tail.length + 3)) - tail.length - 2
 
   return Array.from({ length: columns }, (_, c) => {
     if (c === head) return '★'

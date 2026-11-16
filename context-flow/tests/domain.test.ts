@@ -2,7 +2,7 @@
 import { expect, test } from 'claude-code/testing'
 
 import type { Step } from '../types'
-import { RARE_ODDS, SPECTRA, backgroundAt, currentSpectrum, gold, isRareBoot, paneBackground, pickPalette, pickSpectrum, rainbow, runsOf, setSpectrum, shine, shootingStar, starRow } from '../hooks/domain/color'
+import { RARE_ODDS, SPECTRA, backgroundAt, currentSpectrum, flashAt, isRareBoot, jackpot, paneBackground, pickPalette, pickSpectrum, rainbow, runsOf, setSpectrum, shine, shootingStar, skyRow } from '../hooks/domain/color'
 import { chaptersOf, findRow, flowLines, footLines, windowOf } from '../hooks/domain/flow'
 import { applySegments, itemsOf, parseSegments, parseSummary, segmentPrompt, summaryPrompt, turnsOf } from '../hooks/domain/summary'
 import { actionOf, anchorOf, cells, clip, clock, formatTokens, modelName, oneLine, wrapCells } from '../hooks/domain/text'
@@ -309,11 +309,22 @@ test('まれな起動:同じ時刻なら同じ結果で、おおよそ RARE_ODDS
   expect(rate).toBeLessThan(1.3 / RARE_ODDS)
 })
 
-test('まれな起動:星空と流れ星は幅どおりで、星の位置は起動ごとに決まる', async () => {
+test('まれな起動:空の行・流れ星は幅どおりで、花火が出て、尾まで抜けきって終わる', async () => {
   const seed = 1_763_000_000_123
-  expect([...starRow(seed, 3, 40, 0)].length).toBe(40)
-  expect(starRow(seed, 3, 40, 0).replace(/\S/g, '*')).toBe(starRow(seed, 3, 40, 9).replace(/\S/g, '*'))
+  const width = (runs: { text: string }[]) => [...runs.map(run => run.text).join('')].length
+  for (const ms of [0, 400, 900, 1500]) expect(width(skyRow(seed, 5, 30, 44, ms, ms / 200))).toBe(44)
+  const bursts = Array.from({ length: 30 }, (_, row) => skyRow(seed, row, 30, 44, 500, 2.5))
+    .flat()
+    .filter(run => /[✺✸]/.test(run.text))
+  expect(bursts.length).toBeGreaterThan(0)
   expect([...shootingStar(0.5, 40)].length).toBe(40)
   expect(shootingStar(0.5, 40)).toContain('★')
-  expect(gold('abc', 0).every(run => run.isBold === true && run.color !== undefined)).toBe(true)
+  expect(shootingStar(1, 40).trim()).toBe('')
+  expect(jackpot('abc', 0).every(run => run.isBold === true && run.color !== undefined)).toBe(true)
+})
+
+test('まれな起動:金色の光は一瞬だけで、終われば元の背景に戻る', async () => {
+  expect(flashAt(0, undefined)).toBeUndefined()
+  expect(flashAt(1000, undefined)).toMatch(/^#[0-9a-f]{6}$/)
+  expect(flashAt(2000, '#101010')).toBe('#101010')
 })
