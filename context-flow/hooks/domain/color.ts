@@ -366,14 +366,29 @@ export const skyRow = (
   ms: number,
   frame: number,
 ): Run[] => {
+  // 花火と流れ星の位置・時刻は、行ごとに 1 度だけ求める(桁ごとには求めない)。
+  const bursts = Array.from({ length: BURSTS }, (_, b) => ({
+    b,
+    age: ms - (150 + b * 170 + lot(seed, 900 + b) * 120),
+    cy: 1 + lot(seed, 910 + b) * (rows - 2),
+    cx: 2 + lot(seed, 920 + b) * (columns - 4),
+    reach: 3 + lot(seed, 930 + b) * 4,
+  })).filter(burst => burst.age >= 0 && burst.age <= 650)
+  const meteors = Array.from({ length: METEORS }, (_, m) => {
+    const age = ms - (100 + m * 380 + lot(seed, 940 + m) * 150)
+
+    return {
+      m,
+      age,
+      hr: lot(seed, 950 + m) * rows * 0.5 + age / 70,
+      hc: columns * (0.6 + lot(seed, 960 + m) * 0.5) - age / 35,
+    }
+  }).filter(meteor => meteor.age >= 0)
+
   const cellAt = (c: number): Omit<Run, 'text'> & { ch: string } => {
     // 花火: 輪が広がり、色が抜けていく。
-    for (let b = 0; b < BURSTS; b++) {
-      const age = ms - (150 + b * 170 + lot(seed, 900 + b) * 120)
-      if (age < 0 || age > 650) continue
-      const cy = 1 + lot(seed, 910 + b) * (rows - 2)
-      const cx = 2 + lot(seed, 920 + b) * (columns - 4)
-      const radius = (age / 650) * (3 + lot(seed, 930 + b) * 4)
+    for (const { b, age, cy, cx, reach } of bursts) {
+      const radius = (age / 650) * reach
       const d = Math.hypot(row - cy, (c - cx) / 2)
       if (Math.abs(d - radius) < 0.4) {
         const fade = Math.min(BURST.length - 1, Math.floor((age / 650) * BURST.length))
@@ -381,11 +396,7 @@ export const skyRow = (
       }
     }
     // 流れ星: 右上から左下へ、尾を引いて降る。
-    for (let m = 0; m < METEORS; m++) {
-      const age = ms - (100 + m * 380 + lot(seed, 940 + m) * 150)
-      if (age < 0) continue
-      const hr = lot(seed, 950 + m) * rows * 0.5 + age / 70
-      const hc = columns * (0.6 + lot(seed, 960 + m) * 0.5) - age / 35
+    for (const { m, hr, hc } of meteors) {
       const k = c - hc
       if (k < -0.5 || k > TAIL.length * 2) continue
       if (Math.round(hr - k / 2) !== row) continue
