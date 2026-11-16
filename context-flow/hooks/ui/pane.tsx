@@ -324,5 +324,5 @@ export function renderPane(
 
   const sinceBoot = f.boot === 0 ? Infinity : Math.max(0, now - f.boot)
 
-  return renderBoot($, e, view, { sinceBoot, frame, columns, room })
+  return renderBoot($, e, view, { sinceBoot, bootAt: f.boot, frame, columns, room })
 }

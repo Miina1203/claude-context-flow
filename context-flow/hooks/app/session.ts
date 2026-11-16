@@ -6,6 +6,7 @@ import {
   PALETTES,
   SPECTRA,
   currentSpectrum,
+  isRareBoot,
   paletteList,
   pickPalette,
   pickSpectrum,
@@ -43,9 +44,13 @@ const paneOpen = () => ({
   backgroundColor: 'transparent',
 })
 
-/** 起動アニメーションを最初から流す。 */
-export async function playBoot($: EngineInterface): Promise<void> {
-  const bootAt = Date.now()
+/**
+ * 起動アニメーションを最初から流す。まれな起動かどうかは起動の時刻で決まる。
+ * `isRare` なら、まれな起動になる時刻まで数ミリ秒ずらして、必ずまれな起動にする。
+ */
+export async function playBoot($: EngineInterface, isRare = false): Promise<void> {
+  let bootAt = Date.now()
+  while (isRare && !isRareBoot(bootAt)) bootAt++
   await setBoot($, bootAt)
 }
 
@@ -54,7 +59,7 @@ export async function startSession($: EngineInterface): Promise<void> {
     name: 'context-flow',
     description:
       'セッションの会話の流れ・モデル・コンテキスト量のペインを開く(boot で起動アニメーションを再生、bg で背景の配色、color で流れの色を切り替え)',
-    argumentHint: '[boot | bg <名前> | color <名前>]',
+    argumentHint: '[boot [rare] | bg <名前> | color <名前>]',
   })
   // 前に選んだ背景の配色を戻す。
   const saved = await $.store.get('backdrop').catch(() => undefined)
@@ -159,11 +164,14 @@ export async function runCommand(
     }
   }
   await $.ui.open(paneOpen())
-  // `/context-flow boot` で、起動アニメーションをもう一度流す。
+  // `/context-flow boot` で、起動アニメーションをもう一度流す。`boot rare` なら、まれな起動を流す。
   if (/\bboot\b/.test(args)) {
-    await playBoot($)
+    const isRare = /\brare\b/.test(args)
+    await playBoot($, isRare)
 
-    return { text: '起動アニメーションを流しました。' }
+    return {
+      text: isRare ? 'まれな起動アニメーションを流しました。' : '起動アニメーションを流しました。',
+    }
   }
 
   return { text: 'Context ペインを開きました。' }

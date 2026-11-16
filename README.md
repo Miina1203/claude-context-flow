@@ -79,6 +79,7 @@ claude plugin install context-flow --marketplace rintaroyamaoka/claude-context-f
 | --- | --- |
 | `/context-flow` | ペインを開く(閉じたあと・端末の幅が狭くて出なかったとき) |
 | `/context-flow boot` | 起動アニメーションをもう一度流す |
+| `/context-flow boot rare` | まれな起動アニメーションを流す |
 | `/context-flow bg` | 背景を次の配色へ |
 | `/context-flow bg <名前>` | 背景をその配色にする(例: `/context-flow bg navy`) |
 | `/context-flow color` | 流れの色を次の色へ |
@@ -87,6 +88,7 @@ claude plugin install context-flow --marketplace rintaroyamaoka/claude-context-f
 `<名前>` は、下の表の名前でも呼び名(`濃紺`、`サイバーパンク` など)でもよい。選んだ背景と色は、次のセッションにも残る。
 
 起動アニメーションは、セッションの開始時と、ほかのペインのタブから切り替えたときに流れる。
+10 回に 1 回ほど、まれな起動になる(金色の文字と星空に、波の代わりに流れ星が横切る)。
 
 ### 背景(`bg`)
 

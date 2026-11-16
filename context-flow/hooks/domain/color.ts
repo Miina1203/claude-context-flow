@@ -295,3 +295,59 @@ export const wave = (frame: number): string =>
 
     return BARS[Math.round(level * (BARS.length - 1))] ?? '▁'
   }).join('')
+
+// ── まれな起動 ──
+// 起動アニメーションは、ときどき(RARE_ODDS 回に 1 回)金色の夜空になる。
+// 当たりかどうかは起動の時刻だけで決める(描くたびに変わらないように)。
+/** 何回に 1 回、まれな起動になるか。 */
+export const RARE_ODDS = 10
+
+/** 起動の時刻から 0 以上 1 未満の数を作る(同じ時刻なら同じ数)。 */
+const lot = (seed: number, salt = 0): number => {
+  let h = Math.imul((seed ^ (seed / 2 ** 32)) | 0, 0x9e3779b1) ^ Math.imul(salt + 1, 0x85ebca6b)
+  h = Math.imul(h ^ (h >>> 16), 0x7feb352d)
+  h = Math.imul(h ^ (h >>> 15), 0x846ca68b)
+
+  return ((h ^ (h >>> 16)) >>> 0) / 2 ** 32
+}
+
+/** この時刻に始まった起動が、まれな起動か。 */
+export const isRareBoot = (seed: number): boolean => seed > 0 && lot(seed) < 1 / RARE_ODDS
+
+/** 金色の 3 段(地・帯の縁・帯の芯)。 */
+const GOLD = ['#e8a317', '#ffd54a', '#fff6c8'] as const
+
+/** 金色の文字: 地は金、明るい帯は虹の行と同じ 1 本が走る。 */
+export const gold = (text: string, frame: number, offset = 0): Run[] => {
+  const starts = cellsOf(text, offset)
+
+  return runsOf(text, i => {
+    const glow = glowAt(starts[i] ?? offset, frame)
+
+    return { color: GOLD[glow >= 0.7 ? 2 : glow > 0 ? 1 : 0], isBold: true }
+  })
+}
+
+const STARS = ['·', '∙', '✧', '✦', '✧', '∙'] as const
+
+/** 星空の 1 行。星の位置は起動ごと・行ごとに決まり、瞬きだけが動く。 */
+export const starRow = (seed: number, row: number, columns: number, frame: number): string =>
+  Array.from({ length: columns }, (_, c) => {
+    if (lot(seed, row * 1009 + c) >= 0.04) return ' '
+    const phase = Math.floor(frame * 0.35 + lot(seed, c * 7 + row) * STARS.length)
+
+    return STARS[phase % STARS.length] ?? '·'
+  }).join('')
+
+/** 流れ星: 右上から左へ、尾を引いて横切る 1 行。`k` は 0 から 1 への進み。 */
+export const shootingStar = (k: number, columns: number): string => {
+  const head = Math.round((1 - k) * (columns + 8)) - 4
+  const tail = '━━──···'
+
+  return Array.from({ length: columns }, (_, c) => {
+    if (c === head) return '★'
+    const behind = c - head - 1
+
+    return behind >= 0 && behind < tail.length ? (tail[behind] ?? ' ') : ' '
+  }).join('')
+}

@@ -2,7 +2,7 @@
 import { expect, test } from 'claude-code/testing'
 
 import type { Step } from '../types'
-import { SPECTRA, backgroundAt, currentSpectrum, paneBackground, pickPalette, pickSpectrum, rainbow, runsOf, setSpectrum, shine } from '../hooks/domain/color'
+import { RARE_ODDS, SPECTRA, backgroundAt, currentSpectrum, gold, isRareBoot, paneBackground, pickPalette, pickSpectrum, rainbow, runsOf, setSpectrum, shine, shootingStar, starRow } from '../hooks/domain/color'
 import { chaptersOf, findRow, flowLines, footLines, windowOf } from '../hooks/domain/flow'
 import { applySegments, itemsOf, parseSegments, parseSummary, segmentPrompt, summaryPrompt, turnsOf } from '../hooks/domain/summary'
 import { actionOf, anchorOf, cells, clip, clock, formatTokens, modelName, oneLine, wrapCells } from '../hooks/domain/text'
@@ -295,4 +295,25 @@ test('アクセントの光:色は付けず、明るい帯の芯だけ白の太�
     '#dedede',
     '#ffffff',
   ])
+})
+
+test('まれな起動:同じ時刻なら同じ結果で、おおよそ RARE_ODDS 回に 1 回', async () => {
+  const base = 1_763_000_000_000
+  expect(isRareBoot(base)).toBe(isRareBoot(base))
+  expect(isRareBoot(0)).toBe(false)
+  let hits = 0
+  const tries = 20_000
+  for (let i = 0; i < tries; i++) if (isRareBoot(base + i * 137)) hits++
+  const rate = hits / tries
+  expect(rate).toBeGreaterThan(0.7 / RARE_ODDS)
+  expect(rate).toBeLessThan(1.3 / RARE_ODDS)
+})
+
+test('まれな起動:星空と流れ星は幅どおりで、星の位置は起動ごとに決まる', async () => {
+  const seed = 1_763_000_000_123
+  expect([...starRow(seed, 3, 40, 0)].length).toBe(40)
+  expect(starRow(seed, 3, 40, 0).replace(/\S/g, '*')).toBe(starRow(seed, 3, 40, 9).replace(/\S/g, '*'))
+  expect([...shootingStar(0.5, 40)].length).toBe(40)
+  expect(shootingStar(0.5, 40)).toContain('★')
+  expect(gold('abc', 0).every(run => run.isBold === true && run.color !== undefined)).toBe(true)
 })
