@@ -127,7 +127,7 @@ export const alarmBar = (
 const GLITCH = ['░', '▒', '▓', '#', '%', '&', '@', '$'] as const
 
 /**
- * 警告の行。`left` は ⚠・札・文、`right` は ››› と /compact(幅が足りなければ省く)。
+ * 警告の行。`left` は ⚠・札・文(幅を超える分は … で切る)、`right` は ››› と /compact(幅が足りなければ省く)。
  * 登場の間は、左から 1 字ずつ打ち出し、打ち出す先の 3 字は乱れた字になる。
  */
 export const alarmLine = (
@@ -164,6 +164,20 @@ export const alarmLine = (
           : { color: alarmAt(frame, i + 3, speed), isBold: near < 3 },
     })
   })
+
+  // 幅に収まらない時は、文の終わりを … で切る(折り返すと、流れの窓の高さがずれる)。
+  if (cells(chars.map(one => one.ch).join('')) > width) {
+    let used = 0
+    let keep = 0
+    for (const one of chars) {
+      const w = cells(one.ch)
+      if (used + w > width - 1) break
+      used += w
+      keep++
+    }
+    chars.length = keep
+    chars.push({ ch: '…', style: { color: pulse } })
+  }
 
   const isTyping = sinceWarn < INTRO_MS
   const shown = isTyping ? Math.floor(sinceWarn / 35) : chars.length

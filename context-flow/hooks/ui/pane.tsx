@@ -47,7 +47,6 @@ export function renderPane(
 
   // ── 固定ヘッダー: 計器と目的 ──
   const percent = Math.min(100, Math.max(0, gauge?.percent ?? 0))
-  const tone = percent >= 85 ? 'error' : percent >= 70 ? 'warning' : undefined
   const amount =
     gauge === null
       ? ''
@@ -200,7 +199,7 @@ export function renderPane(
       </Box>
       <Box flexDirection="row">
         <Text dimColor>{amount}  </Text>
-        <Text bold color={isWarned ? alarmAt(frame, 0, urgency(percent)) : tone}>
+        <Text bold color={isWarned ? alarmAt(frame, 0, urgency(percent)) : undefined}>
           {gauge?.percent === undefined ? '–' : `${Math.round(percent)}%`}
         </Text>
       </Box>
@@ -233,7 +232,7 @@ export function renderPane(
     out.push(
       <Box flexDirection="row">
         {bar.map(run => (
-          <Text bold={run.isBold} color={run.isBold ? run.color : (tone ?? run.color)}>
+          <Text bold={run.isBold} color={run.color}>
             {run.text}
           </Text>
         ))}

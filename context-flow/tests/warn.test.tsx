@@ -63,6 +63,14 @@ test('警告の行:打ち出しの途中は乱れた字、打ち終えると文�
   // 狭いと /compact を省き、幅に収める。
   const narrow = alarmLine(0, INTRO_MS, 85, 44)
   expect(cells(textOf(narrow.left)) + cells(textOf(narrow.right))).toBeLessThanOrEqual(44)
+  // 文より狭いと、文の終わりを … で切って 1 行に収める(CRITICAL の札でも同じ)。
+  for (const percent of [85, 95]) {
+    for (const width of [24, 30, 42]) {
+      const tight = alarmLine(0, INTRO_MS, percent, width)
+      expect(cells(textOf(tight.left)) + cells(textOf(tight.right))).toBeLessThanOrEqual(width)
+      expect(textOf(tight.left).endsWith('…')).toBe(true)
+    }
+  }
   // 90% 以上は CRITICAL、近いほど速い。
   expect(textOf(alarmLine(0, INTRO_MS, 92, 60).left)).toContain('CRITICAL')
   expect(urgency(70)).toBe(1)

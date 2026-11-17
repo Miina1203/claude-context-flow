@@ -40,7 +40,7 @@ export const flags: {
   maxScroll: number
   /** このペインが、いま表に出ているタブか(まだ分からない間は undefined)。 */
   isShown: boolean | undefined
-  /** コンテキストが 80% を下から越えた時刻(警告の登場に使う。越えていなければ 0)。 */
+  /** コンテキストが警報の境目を下から越えた時刻(警告の登場に使う。越えていなければ 0)。 */
   warnAt: number
 } = {
   paletteName: DEFAULT_PALETTE,
