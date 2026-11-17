@@ -1,4 +1,4 @@
-// コンテキストが 80% を超えた時の警報(計器の演出・警告の行。トーストは出さない)。
+// コンテキストが 70% を超えた時の警報(計器の演出・警告の行。トーストは出さない)。
 import { expect, mock, test } from 'claude-code/testing'
 
 import { INTRO_MS, WARN_MESSAGE, WARN_PERCENT, alarmAt, alarmBar, alarmLine, blinkOn, crossedWarn, isOverWarn, urgency } from '../hooks/domain/alarm'
@@ -20,16 +20,16 @@ const PANE = {
   },
 } as const
 
-test('警報の境目は 80%:未満は出さず、以上で出す', async () => {
-  expect(WARN_PERCENT).toBe(80)
+test('警報の境目は 70%:未満は出さず、以上で出す', async () => {
+  expect(WARN_PERCENT).toBe(70)
   expect(isOverWarn(undefined)).toBe(false)
-  expect(isOverWarn(79.9)).toBe(false)
-  expect(isOverWarn(80)).toBe(true)
+  expect(isOverWarn(69.9)).toBe(false)
+  expect(isOverWarn(70)).toBe(true)
   // 下から越えた時だけ知らせる(越えたまま・下がった時は知らせない)。
-  expect(crossedWarn(70, 81)).toBe(true)
+  expect(crossedWarn(60, 71)).toBe(true)
   expect(crossedWarn(undefined, 90)).toBe(true)
   expect(crossedWarn(81, 85)).toBe(false)
-  expect(crossedWarn(85, 60)).toBe(false)
+  expect(crossedWarn(85, 50)).toBe(false)
 })
 
 test('警報の色はコマごとに変わり、点滅は点いて消える', async () => {
@@ -65,7 +65,7 @@ test('警告の行:打ち出しの途中は乱れた字、打ち終えると文�
   expect(cells(textOf(narrow.left)) + cells(textOf(narrow.right))).toBeLessThanOrEqual(44)
   // 90% 以上は CRITICAL、近いほど速い。
   expect(textOf(alarmLine(0, INTRO_MS, 92, 60).left)).toContain('CRITICAL')
-  expect(urgency(80)).toBe(1)
+  expect(urgency(70)).toBe(1)
   expect(urgency(100)).toBe(2)
 })
 
@@ -75,7 +75,7 @@ const meterAt = (percent: number) => ({
   },
 })
 
-test('80% を超えると計器が警報になり、トーストは出さない', async ($, on) => {
+test('70% を超えると計器が警報になり、トーストは出さない', async ($, on) => {
   const clock = mock.clock(on, { now: 1000 })
   on('tool.call', () => ({ result: {} }))
   // 計器はツール呼び出しのたびに読み直される。

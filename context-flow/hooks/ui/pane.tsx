@@ -55,7 +55,7 @@ export function renderPane(
         ? `– / ${formatTokens(gauge.window)}`
         : `${formatTokens(gauge.tokens)} / ${formatTokens(gauge.window)}`
   const filled = Math.round((percent / 100) * columns)
-  // 80% を超えたら警報: 計器にサイレン・火花・注意テープ、下に警告の行(`../domain/alarm`)。
+  // 70% を超えたら警報: 計器にサイレン・火花・注意テープ、下に警告の行(`../domain/alarm`)。
   const isWarned = isOverWarn(gauge?.percent)
   const sinceWarn = flags.warnAt === 0 ? Infinity : Math.max(0, now - flags.warnAt)
   // 埋まっている部分にも、文字と同じ光の帯が通る。

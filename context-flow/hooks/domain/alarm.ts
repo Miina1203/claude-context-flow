@@ -1,4 +1,4 @@
-// コンテキストの警報: 80% を超えた時の計器の線と警告の行。`$` は使わない。
+// コンテキストの警報: 70% を超えた時の計器の線と警告の行。`$` は使わない。
 //   登場(越えてから INTRO_MS の間): 線が白く 3 回瞬き、警告の文が乱れた字から打ち出される
 //   その後: 線をサイレンの光が往復し、先端で火花がはじけ、空きは注意テープが流れる。
 //           WARNING の札が脈打ち、文に光が走り、右で ››› が駆ける
@@ -46,7 +46,7 @@ const runsOf = (text: string, paint: (index: number) => Omit<Run, 'text'>): Run[
 }
 
 /** これ以上で警報。 */
-export const WARN_PERCENT = 80
+export const WARN_PERCENT = 70
 /** これ以上で札が CRITICAL になる。 */
 export const CRITICAL_PERCENT = 90
 /** 越えた直後の登場の長さ(ミリ秒)。 */
@@ -67,9 +67,9 @@ const AMBER: Rgb = [255, 196, 40]
 const WHITE: Rgb = [255, 250, 235]
 const mix = (a: Rgb, b: Rgb, t: number): number[] => a.map((v, c) => v + ((b[c] ?? 0) - v) * t)
 
-/** 警報の速さ: 80% で 1 倍、100% で 2 倍。 */
+/** 警報の速さ: `WARN_PERCENT` で 1 倍、100% で 2 倍。 */
 export const urgency = (percent: number): number =>
-  1 + Math.max(0, Math.min(20, percent - WARN_PERCENT)) / 20
+  1 + Math.max(0, Math.min(100 - WARN_PERCENT, percent - WARN_PERCENT)) / (100 - WARN_PERCENT)
 
 /** 赤と琥珀を行き来する色(コマは 200ms)。`cell` で位相をずらすと波が右へ流れる。 */
 export const alarmAt = (frame: number, cell = 0, speed = 1): string =>
