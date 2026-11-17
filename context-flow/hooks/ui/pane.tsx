@@ -4,6 +4,8 @@
 //   下  いま(走っているターン・ツール・サブエージェント)
 import type { EngineInterface, RenderInput } from 'claude-code'
 
+import { alarmAt, alarmBar, alarmLine, isOverWarn, urgency } from '../domain/alarm'
+import type { Run } from '../domain/alarm'
 import { backgroundAt, glowAt, hueAt, rainbow, runsOf, shine, ultra } from '../domain/color'
 import { flowLines, footLines, windowOf } from '../domain/flow'
 import type { Line, Target } from '../domain/flow'
@@ -53,6 +55,9 @@ export function renderPane(
         ? `– / ${formatTokens(gauge.window)}`
         : `${formatTokens(gauge.tokens)} / ${formatTokens(gauge.window)}`
   const filled = Math.round((percent / 100) * columns)
+  // 80% を超えたら警報: 計器にサイレン・火花・注意テープ、下に警告の行(`../domain/alarm`)。
+  const isWarned = isOverWarn(gauge?.percent)
+  const sinceWarn = flags.warnAt === 0 ? Infinity : Math.max(0, now - flags.warnAt)
   // 埋まっている部分にも、文字と同じ光の帯が通る。
   const bar = runsOf('━'.repeat(filled), i => {
     const glow = glowAt(i, frame)
@@ -84,8 +89,8 @@ export function renderPane(
     (decidedShown.length > 0 ? 1 + decidedShown.length : 0) +
     (openShown.length > 0 ? 1 + openShown.length : 0) +
     (decidedShown.length + openShown.length > 0 ? 1 : 0)
-  // 上の余白 1 行+計器 2 行+空行+目的+空行+現在地+流れの見出し+空行。
-  const headRows = 1 + 2 + 1 + 1 + aimLines.length + 1 + stateRows + 1 + 1
+  // 上の余白 1 行+計器 2 行(+警告 1 行)+空行+目的+空行+現在地+流れの見出し+空行。
+  const headRows = 1 + 2 + (isWarned ? 1 : 0) + 1 + 1 + aimLines.length + 1 + stateRows + 1 + 1
 
   // ── 固定フッター: いま ──
   const foot = footLines(running, f.agents, text, now, frame)
@@ -195,22 +200,47 @@ export function renderPane(
       </Box>
       <Box flexDirection="row">
         <Text dimColor>{amount}  </Text>
-        <Text bold color={tone}>
+        <Text bold color={isWarned ? alarmAt(frame, 0, urgency(percent)) : tone}>
           {gauge?.percent === undefined ? '–' : `${Math.round(percent)}%`}
         </Text>
       </Box>
     </Box>,
   )
-  out.push(
-    <Box flexDirection="row">
-      {bar.map(run => (
-        <Text bold={run.isBold} color={run.isBold ? run.color : (tone ?? run.color)}>
-          {run.text}
-        </Text>
-      ))}
-      <Text dimColor>{'─'.repeat(columns - filled)}</Text>
-    </Box>,
-  )
+  if (isWarned) {
+    const line = alarmLine(frame, sinceWarn, percent, columns)
+    const paint = (run: Run) => (
+      <Text
+        bold={run.isBold}
+        dimColor={run.isDim}
+        color={run.color}
+        backgroundColor={run.backgroundColor}
+      >
+        {run.text}
+      </Text>
+    )
+    out.push(
+      <Box flexDirection="row">
+        {alarmBar(filled, columns, frame, sinceWarn, percent).map(paint)}
+      </Box>,
+    )
+    out.push(
+      <Box flexDirection="row" justifyContent="space-between">
+        <Box flexDirection="row">{line.left.map(paint)}</Box>
+        <Box flexDirection="row">{line.right.map(paint)}</Box>
+      </Box>,
+    )
+  } else {
+    out.push(
+      <Box flexDirection="row">
+        {bar.map(run => (
+          <Text bold={run.isBold} color={run.isBold ? run.color : (tone ?? run.color)}>
+            {run.text}
+          </Text>
+        ))}
+        <Text dimColor>{'─'.repeat(columns - filled)}</Text>
+      </Box>,
+    )
+  }
   out.push(undefined)
   out.push(
     <Box flexDirection="row">
