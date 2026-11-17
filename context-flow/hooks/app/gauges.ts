@@ -2,8 +2,9 @@
 import type { EngineInterface } from 'claude-code'
 
 import type { Meter, Sub } from '../../types'
+import { crossedWarn } from '../domain/alarm'
 import { oneLine } from '../domain/text'
-import { getAgents, getMeter, setAgents, setMeter } from '../store'
+import { flags, getAgents, getMeter, setAgents, setMeter } from '../store'
 
 export async function refreshMeter($: EngineInterface): Promise<void> {
   const [model, usage] = await Promise.all([
@@ -19,6 +20,10 @@ export async function refreshMeter($: EngineInterface): Promise<void> {
   const now = await getMeter($)
   if (JSON.stringify(now) !== JSON.stringify(next)) {
     await setMeter($, next)
+  }
+  // 下から越えた時刻を控え、警告の登場に使う(前の値は状態にあるので、再読み込みでは登場しない)。
+  if (now !== null && crossedWarn(now.percent, next.percent)) {
+    flags.warnAt = await $.clock.now()
   }
 }
 
