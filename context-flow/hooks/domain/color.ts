@@ -319,7 +319,7 @@ export const lot = (seed: number, salt = 0): number => {
   return ((h ^ (h >>> 16)) >>> 0) / 2 ** 32
 }
 
-/** 何回に 1 回、雷の起動(ドット絵の雷雲の子が雷を落とす。`../domain/thunder`)になるか。 */
+/** 何回に 1 回、雷の起動(ドット絵の黄色いしま猫が、雨雲を雷で吹き飛ばす。`./thunder`)になるか。 */
 export const THUNDER_ODDS = 30
 
 /** この時刻に始まった起動が、雷の起動か。 */
